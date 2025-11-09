@@ -5,9 +5,9 @@ def create_app() -> Flask:
     """Application factory for the Tutoriapp backend."""
     app = Flask(__name__)
 
-    from .routes import api_bp
+    from app.routes import init_app as init_routes
 
-    app.register_blueprint(api_bp, url_prefix="/api")
+    init_routes(app)
 
     return app
 

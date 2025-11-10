@@ -14,15 +14,94 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  password   String
-  role       Role     @default(user)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                  Int               @id @default(autoincrement())
+  email               String            @unique
+  password            String
+  role                Role              @default(user)
+  first_name          String
+  second_name         String?
+  first_surname       String
+  second_surname      String?
+  phone_number        String?
+  status              Boolean           @default(true)
+  created_at          DateTime          @default(now())
+  updated_at          DateTime?         @updatedAt
+  session_attendances SessionStudents[]
+  sessions            Sessions[]
+}
+
+model Courses {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String
+  semester    Int
+  status      Boolean
+  created_at  DateTime   @default(now())
+  updated_at  DateTime?  @updatedAt
+  sessions    Sessions[]
+}
+
+model Sessions {
+  id          Int               @id @default(autoincrement())
+  title       String?
+  description String?
+  start_date  DateTime?
+  end_date    DateTime?
+  duration    Int
+  seats       Int
+  type        Type              @default(online)
+  status      Status            @default(pending)
+  level       Level             @default(basic)
+  tutor_id    Int
+  course_id   Int
+  class_room  String?
+  created_at  DateTime          @default(now())
+  updated_at  DateTime?         @updatedAt
+  course      Courses           @relation(fields: [course_id], references: [id])
+  tutor       User              @relation(fields: [tutor_id], references: [id])
+  students    SessionStudents[]
+}
+
+model SessionStudents {
+  id         Int                  @id @default(autoincrement())
+  session_id Int
+  student_id Int
+  status     SessionStudentStatus @default(requested)
+  attended   Boolean              @default(false)
+  created_at DateTime             @default(now())
+  updated_at DateTime?            @updatedAt
+  session    Sessions             @relation(fields: [session_id], references: [id])
+  student    User                 @relation(fields: [student_id], references: [id])
+
+  @@unique([session_id, student_id])
+}
+
+enum Status {
+  pending
+  confirmed
+  cancelled
+}
+
+enum SessionStudentStatus {
+  requested
+  registered
+  absent
+  attended
+  rejected
 }
 
 enum Role {
-  admin
-  user
+  admin //teachers
+  user //students
+}
+
+enum Type {
+  online
+  in_person
+}
+
+enum Level {
+  basic
+  medium
+  advanced
 }

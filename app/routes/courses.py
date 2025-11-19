@@ -93,7 +93,6 @@ def create_course():
 @bp.put("/courses/<int:course_id>")
 def update_course(course_id: int):
     payload = request.get_json(silent=True) or {}
-    print("payload: ", payload)
     allowed_fields = {"name", "description", "semester", "status"}
     update_data = {key: value for key, value in payload.items() if key in allowed_fields}
 

@@ -32,6 +32,7 @@ model User {
 
 model Courses {
   id          Int        @id @default(autoincrement())
+  code        String     @unique
   name        String
   description String
   semester    Int

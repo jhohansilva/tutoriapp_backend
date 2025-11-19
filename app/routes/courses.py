@@ -21,8 +21,30 @@ def _parse_status_param(raw_value: Optional[str]) -> Optional[bool]:
 
 @bp.get("/courses")
 def list_courses():
+    search = request.args.get("search")
+    semester_param = request.args.get("semester")
     status_filter = _parse_status_param(request.args.get("status"))
-    courses = courses_service.find_many(status=status_filter)
+
+    if semester_param:
+        try:
+            semester = int(semester_param)
+        except ValueError:
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid semester value, expected an integer",
+                    }
+                ),
+                400,
+            )
+    else:
+        semester = None
+
+    courses = courses_service.find_many(
+        search=search,
+        semester=semester,
+        status=status_filter,
+    )
     return jsonify({"data": courses})
 
 
@@ -71,6 +93,7 @@ def create_course():
 @bp.put("/courses/<int:course_id>")
 def update_course(course_id: int):
     payload = request.get_json(silent=True) or {}
+    print("payload: ", payload)
     allowed_fields = {"name", "description", "semester", "status"}
     update_data = {key: value for key, value in payload.items() if key in allowed_fields}
 

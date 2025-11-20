@@ -18,10 +18,7 @@ model User {
   email               String            @unique
   password            String
   role                Role              @default(user)
-  first_name          String
-  second_name         String?
-  first_surname       String
-  second_surname      String?
+  name                String
   phone_number        String?
   status              Boolean           @default(true)
   created_at          DateTime          @default(now())

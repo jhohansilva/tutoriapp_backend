@@ -47,8 +47,7 @@ async def _find_many(
             if search:
                 where["OR"] = [
                     {"email": {"contains": search, "mode": "insensitive"}},
-                    {"first_name": {"contains": search, "mode": "insensitive"}},
-                    {"first_surname": {"contains": search, "mode": "insensitive"}},
+                    {"name": {"contains": search, "mode": "insensitive"}},
                 ]
 
             users = await db.user.find_many(
@@ -138,8 +137,7 @@ async def _find_many_by_session_id(
                         {
                             "OR": [
                                 {"email": {"contains": search, "mode": "insensitive"}},
-                                {"first_name": {"contains": search, "mode": "insensitive"}},
-                                {"first_surname": {"contains": search, "mode": "insensitive"}},
+                                {"name": {"contains": search, "mode": "insensitive"}},
                             ]
                         }
                     ]

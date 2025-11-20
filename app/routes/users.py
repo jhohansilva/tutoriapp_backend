@@ -56,7 +56,7 @@ def get_user(user_id: int):
 def create_user():
     payload = request.get_json(silent=True) or {}
 
-    required_fields = {"email", "password", "first_name", "first_surname"}
+    required_fields = {"email", "password", "name"}
     missing = [field for field in required_fields if field not in payload]
     if missing:
         return (
@@ -67,8 +67,7 @@ def create_user():
     user_data = {
         "email": payload["email"],
         "password": payload["password"],
-        "first_name": payload["first_name"],
-        "first_surname": payload["first_surname"],
+        "name": payload["name"],
     }
 
     optional_fields = {
@@ -108,10 +107,7 @@ def update_user(user_id: int):
     updatable_fields = {
         "email",
         "password",
-        "first_name",
-        "second_name",
-        "first_surname",
-        "second_surname",
+        "name",
         "phone_number",
         "role",
     }

@@ -133,7 +133,13 @@ async def _find_many(
                 },
             )
 
-            data = [_session_to_dict(session) for session in sessions]
+            data = []
+            for session in sessions:
+                session_dict = _session_to_dict(session)
+                # Agregar el campo enrolled con la cantidad de estudiantes
+                students = session_dict.get("students", [])
+                session_dict["enrolled"] = len(students) if students else 0
+                data.append(session_dict)
 
             return {
                 "totalRecords": len(data),
@@ -280,6 +286,62 @@ async def _update_session_student_status(
             return None
 
 
+async def _create_session_student(
+    session_id: int,
+    student_id: int,
+    status: Optional[str] = None,
+    attended: Optional[bool] = None,
+) -> Optional[Dict[str, Any]]:
+    async with get_db() as db:
+        try:
+            # Verificar que la sesión existe
+            session = await db.sessions.find_unique(where={"id": session_id})
+            if not session:
+                return None
+
+            # Verificar que el estudiante existe
+            student = await db.user.find_unique(where={"id": student_id})
+            if not student:
+                return None
+
+            # Verificar si ya existe un registro para esta combinación session_id + student_id
+            existing = await db.sessionstudents.find_first(
+                where={
+                    "session_id": session_id,
+                    "student_id": student_id,
+                }
+            )
+            if existing:
+                return None  # Ya existe, se debe usar el endpoint de actualización
+
+            # Preparar los datos
+            data: Dict[str, Any] = {
+                "session_id": session_id,
+                "student_id": student_id,
+            }
+
+            if status:
+                data["status"] = status
+
+            if attended is not None:
+                data["attended"] = attended
+
+            # Crear el registro
+            enrollment = await db.sessionstudents.create(
+                data=data,
+                include={
+                    "session": True,
+                    "student": True,
+                },
+            )
+
+            return _enrollment_to_dict(enrollment)
+
+        except Exception as e:
+            print(f"[ERROR_SESSIONS] create_session_student: {e}")
+            return None
+
+
 def find_one(session_id: int) -> Optional[Dict[str, Any]]:
     return asyncio.run(_find_one(session_id))
 
@@ -333,4 +395,15 @@ def update_session_student_status(
 ) -> Optional[Dict[str, Any]]:
     return asyncio.run(
         _update_session_student_status(session_id, student_id, status, attended)
+    )
+
+
+def create_session_student(
+    session_id: int,
+    student_id: int,
+    status: Optional[str] = None,
+    attended: Optional[bool] = None,
+) -> Optional[Dict[str, Any]]:
+    return asyncio.run(
+        _create_session_student(session_id, student_id, status, attended)
     )

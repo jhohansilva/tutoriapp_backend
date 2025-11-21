@@ -1,6 +1,8 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, request
+
 from services.auth import login as login_service
-from flask import request
+from app.routes.response_utils import success_response, error_response
+
 bp = Blueprint("auth", __name__)
 
 
@@ -12,24 +14,20 @@ def login():
         email = data.get("email")
         password = data.get("password")
         if not email or not password:
-            return jsonify({"error": "Email and password are required"}), 400
+            return error_response("Email and password are required", 400)
 
         login_result = login_service(email, password)           
         if not login_result:
-            return jsonify({"error": "Invalid email or password"}), 401
+            return error_response("Invalid email or password", 401)
            
-        return jsonify({
-                "success": True, 
-                "message": "Login successful", 
-                "data": login_result
-            }), 200
+        return success_response(login_result, "Login successful", 200)
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return error_response(str(e), 500)
 
 @bp.post("/register")
 def register():
     """Register a new user."""
-    return jsonify({"status": "ok"})
+    return success_response({}, "Registro exitoso", 200)
 
 __all__ = ["bp"]

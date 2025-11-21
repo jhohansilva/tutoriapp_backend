@@ -8,6 +8,7 @@ from services.db import get_db
 def _serialize_course(course: Any) -> Dict[str, Any]:
     return {
         "id": course.id,
+        "code": course.code,
         "name": course.name,
         "description": course.description,
         "semester": course.semester,
@@ -36,6 +37,7 @@ async def _find_many(
                 where["OR"] = [
                     {"name": {"contains": search, "mode": "insensitive"}},
                     {"description": {"contains": search, "mode": "insensitive"}},
+                    {"code": {"contains": search, "mode": "insensitive"}},
                 ]
 
             courses = await db.courses.find_many(where=where or None)

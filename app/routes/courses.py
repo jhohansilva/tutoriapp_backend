@@ -1,9 +1,10 @@
 from typing import Optional
 
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 
 from services import courses as courses_service
 from app.routes.response_utils import success_response, error_response
+from app.middleware import require_auth
 
 bp = Blueprint("courses", __name__)
 
@@ -51,8 +52,16 @@ def get_course(course_id: int):
 
 
 @bp.post("/courses")
+@require_auth
 def create_course():
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado (operador)
+    # Ejemplo de uso: current_user = g.current_user
+    # operator_id = current_user["id"]
+    # operator_email = current_user["email"]
+    # operator_name = current_user["name"]
+    # operator_role = current_user["role"]
 
     code = payload.get("code")
     name = payload.get("name")
@@ -79,6 +88,7 @@ def create_course():
 
 
 @bp.put("/courses/<int:course_id>")
+@require_auth
 def update_course(course_id: int):
     payload = request.get_json(silent=True) or {}
     allowed_fields = {"code", "name", "description", "semester", "status"}
@@ -95,6 +105,7 @@ def update_course(course_id: int):
 
 
 @bp.patch("/courses/<int:course_id>/status")
+@require_auth
 def update_course_status(course_id: int):
     payload = request.get_json(silent=True) or {}
 

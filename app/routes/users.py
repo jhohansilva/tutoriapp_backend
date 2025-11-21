@@ -1,7 +1,8 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 
 from services import users as users_service
 from app.routes.response_utils import success_response, error_response
+from app.middleware import require_auth
 
 bp = Blueprint("users", __name__)
 
@@ -39,6 +40,7 @@ def get_user(user_id: int):
 
 
 @bp.post("/users")
+@require_auth
 def create_user():
     payload = request.get_json(silent=True) or {}
 
@@ -76,8 +78,18 @@ def create_user():
 
 
 @bp.put("/users/<int:user_id>")
+@require_auth
 def update_user(user_id: int):
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado
+    current_user = g.current_user
+    current_user_id = current_user["id"]
+    current_user_role = current_user["role"]
+    
+    # Los usuarios solo pueden actualizar su propio perfil, a menos que sean admin
+    if current_user_role != "admin" and user_id != current_user_id:
+        return error_response("No tienes permiso para actualizar otros usuarios", 403)
     
     if not payload:
         return error_response("No data provided", 400)
@@ -112,6 +124,7 @@ def update_user(user_id: int):
 
 
 @bp.patch("/users/<int:user_id>/status")
+@require_auth
 def update_user_status(user_id: int):
     payload = request.get_json(silent=True) or {}
     status = payload.get("status")

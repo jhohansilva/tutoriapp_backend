@@ -1,11 +1,10 @@
-import asyncio
 import os
 from typing import Any, Dict, Optional
 from jwt import encode as jwt_encode, decode as jwt_decode
 from jwt.exceptions import InvalidTokenError, DecodeError, ExpiredSignatureError
 import bcrypt
 
-from services.db import get_db
+from services.db import get_db, run_in_persistent_loop
 
 SECRET_KEY = os.getenv("JWT_SECRET", "secret-key")
 
@@ -39,7 +38,7 @@ async def _login(email: str, password: str) -> Optional[Dict[str, Any]]:
 
 def login(email: str, password: str) -> Optional[Dict[str, Any]]:
     """Synchronously login a user by invoking the async Prisma client."""
-    return asyncio.run(_login(email, password))
+    return run_in_persistent_loop(_login(email, password))
 
 
 async def _verify_token_and_get_user(token: str) -> Optional[Dict[str, Any]]:
@@ -75,7 +74,7 @@ async def _verify_token_and_get_user(token: str) -> Optional[Dict[str, Any]]:
 
 def verify_token_and_get_user(token: str) -> Optional[Dict[str, Any]]:
     """Synchronously verify JWT token and get user information."""
-    return asyncio.run(_verify_token_and_get_user(token))
+    return run_in_persistent_loop(_verify_token_and_get_user(token))
 
 
 async def _change_password(user_id: int, old_password: str, new_password: str) -> Optional[Dict[str, Any]]:
@@ -115,4 +114,4 @@ async def _change_password(user_id: int, old_password: str, new_password: str) -
 
 def change_password(user_id: int, old_password: str, new_password: str) -> Optional[Dict[str, Any]]:
     """Synchronously change user password."""
-    return asyncio.run(_change_password(user_id, old_password, new_password))
+    return run_in_persistent_loop(_change_password(user_id, old_password, new_password))

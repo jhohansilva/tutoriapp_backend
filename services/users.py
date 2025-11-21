@@ -1,9 +1,8 @@
-import asyncio
 import bcrypt
 from typing import Any, Dict, List, Optional
 
 from prisma.errors import RecordNotFoundError
-from services.db import get_db
+from services.db import get_db, run_in_persistent_loop
 
 
 def _hash_password(password: str) -> str:
@@ -159,7 +158,7 @@ async def _find_many_by_session_id(
 
 
 def find_one(user_id: int) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_find_one(user_id))
+    return run_in_persistent_loop(_find_one(user_id))
 
 
 def find_many(
@@ -167,19 +166,73 @@ def find_many(
     status: Optional[bool] = None,
     search: Optional[str] = None,
 ) -> Dict[str, Any]:
-    return asyncio.run(_find_many(role, status, search))
+    return run_in_persistent_loop(_find_many(role, status, search))
 
 
 def create_user(data: Dict[str, Any]) -> Dict[str, Any]:
-    return asyncio.run(_create_user(data))
+    return run_in_persistent_loop(_create_user(data))
 
 
 def update_user(user_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_update_user(user_id, data))
+    return run_in_persistent_loop(_update_user(user_id, data))
 
 
 def update_status(user_id: int, status: bool) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_update_status(user_id, status))
+    return run_in_persistent_loop(_update_status(user_id, status))
+
+
+async def _find_students_by_tutor_id(tutor_id: int) -> Dict[str, Any]:
+    """Get all students (role=user) related to sessions of a specific tutor (role=admin)."""
+    async with get_db() as db:
+        try:
+            # Verificar que el tutor existe y es admin
+            tutor = await db.user.find_unique(where={"id": tutor_id})
+            if not tutor:
+                return {
+                    "totalRecords": 0,
+                    "students": []
+                }
+            
+            if tutor.role != "admin":
+                return {
+                    "totalRecords": 0,
+                    "students": []
+                }
+            
+            # Obtener todas las sesiones del tutor
+            sessions = await db.sessions.find_many(
+                where={"tutor_id": tutor_id},
+                include={"students": True}
+            )
+            
+            # Obtener todos los student_ids únicos de las sesiones
+            student_ids = set()
+            for session in sessions:
+                for enrollment in session.students:
+                    student_ids.add(enrollment.student_id)
+            
+            # Obtener los estudiantes (role=user) únicos
+            students = []
+            if student_ids:
+                students_list = await db.user.find_many(
+                    where={
+                        "id": {"in": list(student_ids)},
+                        "role": "user"
+                    }
+                )
+                students = [_user_to_dict(student) for student in students_list]
+            
+            return {
+                "totalRecords": len(students),
+                "students": students
+            }
+            
+        except Exception as e:
+            print("[ERROR_USERS] find_students_by_tutor_id: ", e)
+            return {
+                "totalRecords": 0,
+                "students": []
+            }
 
 
 def find_many_by_session_id(
@@ -187,4 +240,9 @@ def find_many_by_session_id(
     search: Optional[str] = None,
     status: Optional[str] = None
 ) -> Dict[str, Any]:
-    return asyncio.run(_find_many_by_session_id(session_id, search, status))
+    return run_in_persistent_loop(_find_many_by_session_id(session_id, search, status))
+
+
+def find_students_by_tutor_id(tutor_id: int) -> Dict[str, Any]:
+    """Synchronously get students related to tutor sessions."""
+    return run_in_persistent_loop(_find_students_by_tutor_id(tutor_id))

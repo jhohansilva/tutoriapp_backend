@@ -1,8 +1,9 @@
 from datetime import datetime
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 
 from services import sessions as sessions_service
 from app.routes.response_utils import success_response, error_response
+from app.middleware import require_auth
 
 bp = Blueprint("sessions", __name__)
 
@@ -126,19 +127,33 @@ def get_sessions_by_student(student_id: int):
 
 
 @bp.post("/sessions")
+@require_auth
 def create_session():
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado
+    current_user = g.current_user
+    user_id = current_user["id"]
+    user_role = current_user["role"]
 
-    required_fields = {"duration", "seats", "type", "tutor_id", "course_id"}
+    required_fields = {"duration", "seats", "type", "course_id"}
     missing = [field for field in required_fields if field not in payload]
     if missing:
         return error_response(f"Missing required fields: {', '.join(missing)}", 400)
+
+    # Si no se proporciona tutor_id, usar el ID del usuario autenticado
+    # Solo admins pueden crear sesiones para otros tutores
+    tutor_id = payload.get("tutor_id")
+    if not tutor_id:
+        tutor_id = user_id
+    elif user_role != "admin" and tutor_id != user_id:
+        return error_response("No tienes permiso para crear sesiones para otros tutores", 403)
 
     session_data = {
         "duration": payload["duration"],
         "seats": payload["seats"],
         "type": payload["type"],
-        "tutor_id": payload["tutor_id"],
+        "tutor_id": tutor_id,
         "course_id": payload["course_id"],
     }
 
@@ -178,8 +193,17 @@ def create_session():
 
 
 @bp.patch("/sessions/<int:session_id>/status")
+@require_auth
 def update_session_status(session_id: int):
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado (operador)
+    # Ejemplo de uso: current_user = g.current_user
+    # user_id = current_user["id"]
+    # user_email = current_user["email"]
+    # user_role = current_user["role"]
+    # user_name = current_user["name"]
+    
     status = payload.get("status")
 
 
@@ -193,16 +217,26 @@ def update_session_status(session_id: int):
     return success_response(session, "Estado de la sesión actualizado exitosamente")
 
 @bp.post("/sessions/<int:session_id>/students")
+@require_auth
 def create_session_student(session_id: int):
     """Create a new enrollment (SessionStudents record) for a student in a session."""
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado
+    current_user = g.current_user
+    user_id = current_user["id"]
+    user_role = current_user["role"]
 
     student_id = payload.get("student_id")
-    status = payload.get("status", "registered")
+    status = payload.get("status", "requested")
     attended = payload.get("attended", False)
 
+    # Si no se proporciona student_id, usar el ID del usuario autenticado
     if not student_id:
-        return error_response("Missing required field: student_id", 400)
+        student_id = user_id
+    # Solo admins pueden inscribir a otros estudiantes
+    elif user_role != "admin" and student_id != user_id:
+        return error_response("No tienes permiso para inscribir a otros estudiantes", 403)
 
     if not isinstance(student_id, int):
         return error_response("student_id must be an integer", 400)
@@ -227,8 +261,16 @@ def create_session_student(session_id: int):
 
 
 @bp.patch("/sessions/<int:session_id>/students/<int:student_id>/status")
+@require_auth
 def update_session_student_status(session_id: int, student_id: int):
     payload = request.get_json(silent=True) or {}
+    
+    # Acceder a la información del usuario autenticado (operador)
+    # Ejemplo de uso: current_user = g.current_user
+    # user_id = current_user["id"]
+    # user_email = current_user["email"]
+    # user_role = current_user["role"]
+    # user_name = current_user["name"]
 
     status = payload.get("status")
     attended = payload.get("attended")

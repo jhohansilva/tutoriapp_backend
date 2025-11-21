@@ -21,6 +21,7 @@ def _validate_date_param(value: str) -> bool:
 
 
 @bp.get("/sessions")
+@require_auth
 def list_sessions():
     search = request.args.get("search")
     level = request.args.get("level")
@@ -35,9 +36,9 @@ def list_sessions():
         try:
             limit = int(limit_str)
             if limit <= 0:
-                return jsonify({"error": "limit must be a positive integer"}), 400
+                return error_response("limit must be a positive integer", 400)
         except ValueError:
-            return jsonify({"error": "limit must be a valid integer"}), 400
+            return error_response("limit must be a valid integer", 400)
 
     if level and level not in {"basic", "medium", "advanced"}:
         return error_response("Invalid level value. Allowed values: basic, medium, advanced", 400)
@@ -49,6 +50,10 @@ def list_sessions():
         if value and not _validate_date_param(value):
             return error_response(f"Invalid {label} format, expected YYYY-MM-DD", 400)
 
+    exclude_user_id = None
+    if hasattr(g, 'current_user') and g.current_user:
+        exclude_user_id = g.current_user["id"]
+
     sessions = sessions_service.find_many(
         search=search,
         level=level,
@@ -56,6 +61,7 @@ def list_sessions():
         end_date=end_date,
         status=status,
         limit=limit,
+        exclude_user_id=exclude_user_id,
     )
     return success_response(sessions)
 

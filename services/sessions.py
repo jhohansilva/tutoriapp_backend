@@ -98,6 +98,7 @@ async def _find_many(
     end_date: Optional[str] = None,
     status: Optional[str] = None,
     limit: Optional[int] = None,
+    exclude_user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     async with get_db() as db:
         try:
@@ -121,6 +122,16 @@ async def _find_many(
             end_dt = _parse_date_param(end_date, end_of_day=True)
             if end_dt:
                 where.setdefault("end_date", {})["lte"] = end_dt
+
+            # Excluir sesiones donde el usuario ya está inscrito como estudiante
+            if exclude_user_id:
+                where["NOT"] = {
+                    "students": {
+                        "some": {
+                            "student_id": exclude_user_id
+                        }
+                    }
+                }
 
             # Construir los argumentos de find_many
             find_args: Dict[str, Any] = {
@@ -372,8 +383,9 @@ def find_many(
     end_date: Optional[str] = None,
     status: Optional[str] = None,
     limit: Optional[int] = None,
+    exclude_user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
-    return asyncio.run(_find_many(search, level, start_date, end_date, status, limit))
+    return asyncio.run(_find_many(search, level, start_date, end_date, status, limit, exclude_user_id))
 
 
 def find_many_by_student_id(

@@ -88,6 +88,7 @@ def update_user(user_id: int):
         "name",
         "phone_number",
         "role",
+        "status",
     }
     
     user_data = {}

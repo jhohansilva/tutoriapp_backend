@@ -52,7 +52,7 @@ async def _find_many(
 
             users = await db.user.find_many(
                 where=where or None,
-                order={"created_at": "desc"},
+                order={"name": "asc"},
             )
 
             data = [_user_to_dict(user) for user in users]

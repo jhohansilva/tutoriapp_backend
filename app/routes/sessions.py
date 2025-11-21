@@ -1,11 +1,13 @@
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 
 from services import sessions as sessions_service
+from app.routes.response_utils import success_response, error_response
 
 bp = Blueprint("sessions", __name__)
 
 VALID_STATUSES = {"pending", "confirmed", "cancelled"}
+VALID_ENROLLMENT_STATUSES = {"requested", "registered", "absent", "attended", "rejected"}
 DATE_FORMAT = "%Y-%m-%d"
 
 
@@ -37,37 +39,14 @@ def list_sessions():
             return jsonify({"error": "limit must be a valid integer"}), 400
 
     if level and level not in {"basic", "medium", "advanced"}:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid level value",
-                    "allowed": ["basic", "medium", "advanced"],
-                }
-            ),
-            400,
-        )
+        return error_response("Invalid level value. Allowed values: basic, medium, advanced", 400)
 
     if status and status not in VALID_STATUSES:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid status value",
-                    "allowed": list(VALID_STATUSES),
-                }
-            ),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_STATUSES)}", 400)
 
     for label, value in (("start_date", start_date), ("end_date", end_date)):
         if value and not _validate_date_param(value):
-            return (
-                jsonify(
-                    {
-                        "error": f"Invalid {label} format, expected YYYY-MM-DD",
-                    }
-                ),
-                400,
-            )
+            return error_response(f"Invalid {label} format, expected YYYY-MM-DD", 400)
 
     sessions = sessions_service.find_many(
         search=search,
@@ -77,15 +56,15 @@ def list_sessions():
         status=status,
         limit=limit,
     )
-    return jsonify({"data": sessions, "success": True})
+    return success_response(sessions)
 
 
 @bp.get("/sessions/<int:session_id>")
 def get_session(session_id: int):
     session = sessions_service.find_one(session_id)
     if not session:
-        return jsonify({"error": "Session not found"}), 404
-    return jsonify({"data": session})
+        return error_response("Session not found", 404)
+    return success_response(session)
 
 
 @bp.get("/sessions/tutor/<int:tutor_id>")
@@ -97,37 +76,14 @@ def get_sessions_by_tutor(tutor_id: int):
     status = request.args.get("status")
 
     if level and level not in {"basic", "medium", "advanced"}:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid level value",
-                    "allowed": ["basic", "medium", "advanced"],
-                }
-            ),
-            400,
-        )
+        return error_response("Invalid level value. Allowed values: basic, medium, advanced", 400)
 
     if status and status not in VALID_STATUSES:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid status value",
-                    "allowed": list(VALID_STATUSES),
-                }
-            ),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_STATUSES)}", 400)
 
     for label, value in (("start_date", start_date), ("end_date", end_date)):
         if value and not _validate_date_param(value):
-            return (
-                jsonify(
-                    {
-                        "error": f"Invalid {label} format, expected YYYY-MM-DD",
-                    }
-                ),
-                400,
-            )
+            return error_response(f"Invalid {label} format, expected YYYY-MM-DD", 400)
 
     sessions = sessions_service.find_many_by_tutor_id(
         tutor_id,
@@ -137,7 +93,7 @@ def get_sessions_by_tutor(tutor_id: int):
         end_date=end_date,
         status=status,
     )
-    return jsonify({"data": sessions})
+    return success_response(sessions)
 
 
 @bp.get("/sessions/student/<int:student_id>")
@@ -149,37 +105,14 @@ def get_sessions_by_student(student_id: int):
     status = request.args.get("status")
 
     if level and level not in {"basic", "medium", "advanced"}:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid level value",
-                    "allowed": ["basic", "medium", "advanced"],
-                }
-            ),
-            400,
-        )
+        return error_response("Invalid level value. Allowed values: basic, medium, advanced", 400)
 
     if status and status not in VALID_STATUSES:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid status value",
-                    "allowed": list(VALID_STATUSES),
-                }
-            ),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_STATUSES)}", 400)
 
     for label, value in (("start_date", start_date), ("end_date", end_date)):
         if value and not _validate_date_param(value):
-            return (
-                jsonify(
-                    {
-                        "error": f"Invalid {label} format, expected YYYY-MM-DD",
-                    }
-                ),
-                400,
-            )
+            return error_response(f"Invalid {label} format, expected YYYY-MM-DD", 400)
 
     sessions = sessions_service.find_many_by_student_id(
         student_id,
@@ -189,7 +122,7 @@ def get_sessions_by_student(student_id: int):
         end_date=end_date,
         status=status,
     )
-    return jsonify({"data": sessions})
+    return success_response(sessions)
 
 
 @bp.post("/sessions")
@@ -199,10 +132,7 @@ def create_session():
     required_fields = {"duration", "seats", "type", "tutor_id", "course_id"}
     missing = [field for field in required_fields if field not in payload]
     if missing:
-        return (
-            jsonify({"error": "Missing required fields", "required": missing}),
-            400,
-        )
+        return error_response(f"Missing required fields: {', '.join(missing)}", 400)
 
     session_data = {
         "duration": payload["duration"],
@@ -213,10 +143,7 @@ def create_session():
     }
 
     if session_data["type"] not in {"online", "in_person"}:
-        return (
-            jsonify({"error": "Invalid type value", "allowed": ["online", "in_person"]}),
-            400,
-        )
+        return error_response("Invalid type value. Allowed values: online, in_person", 400)
 
     optional_fields = {
         "title",
@@ -233,19 +160,11 @@ def create_session():
 
     level = session_data.get("level")
     if level and level not in {"basic", "medium", "advanced"}:
-        return (
-            jsonify(
-                {"error": "Invalid level value", "allowed": ["basic", "medium", "advanced"]}
-            ),
-            400,
-        )
+        return error_response("Invalid level value. Allowed values: basic, medium, advanced", 400)
 
     status = session_data.get("status")
     if status and status not in VALID_STATUSES:
-        return (
-            jsonify({"error": "Invalid status value", "allowed": list(VALID_STATUSES)}),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_STATUSES)}", 400)
 
     session_data = {
         **session_data,
@@ -253,9 +172,9 @@ def create_session():
 
     try:
         session = sessions_service.create_session(session_data)
-        return jsonify({"data": session}), 201
+        return success_response(session, "Sesión creada exitosamente", 201)
     except Exception as exc:  # pragma: no cover - defensive
-        return jsonify({"error": str(exc)}), 500
+        return error_response(str(exc), 500)
 
 
 @bp.patch("/sessions/<int:session_id>/status")
@@ -263,24 +182,49 @@ def update_session_status(session_id: int):
     payload = request.get_json(silent=True) or {}
     status = payload.get("status")
 
-    print("status: ", status)
 
     if status not in VALID_STATUSES:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid status value",
-                    "allowed": list(VALID_STATUSES),
-                }
-            ),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_STATUSES)}", 400)
 
     session = sessions_service.update_status(session_id, status)
     if not session:
-        return jsonify({"error": "Session not found"}), 404
+        return error_response("Session not found", 404)
 
-    return jsonify({"data": session})
+    return success_response(session, "Estado de la sesión actualizado exitosamente")
+
+@bp.post("/sessions/<int:session_id>/students")
+def create_session_student(session_id: int):
+    """Create a new enrollment (SessionStudents record) for a student in a session."""
+    payload = request.get_json(silent=True) or {}
+
+    student_id = payload.get("student_id")
+    status = payload.get("status", "registered")
+    attended = payload.get("attended", False)
+
+    if not student_id:
+        return error_response("Missing required field: student_id", 400)
+
+    if not isinstance(student_id, int):
+        return error_response("student_id must be an integer", 400)
+
+    if status not in VALID_ENROLLMENT_STATUSES:
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_ENROLLMENT_STATUSES)}", 400)
+
+    if not isinstance(attended, bool):
+        return error_response("attended must be a boolean value", 400)
+
+    enrollment = sessions_service.create_session_student(
+        session_id=session_id,
+        student_id=student_id,
+        status=status,
+        attended=attended,
+    )
+
+    if not enrollment:
+        return error_response("Session not found, student not found, or enrollment already exists", 404)
+
+    return success_response(enrollment, "Estudiante inscrito en la sesión exitosamente", 201)
+
 
 @bp.patch("/sessions/<int:session_id>/students/<int:student_id>/status")
 def update_session_student_status(session_id: int, student_id: int):
@@ -290,18 +234,10 @@ def update_session_student_status(session_id: int, student_id: int):
     attended = payload.get("attended")
 
     if not status:
-        return jsonify({"error": "Missing required field: status"}), 400
-
-    VALID_ENROLLMENT_STATUSES = {"requested", "registered", "absent", "attended", "rejected"}
+        return error_response("Missing required field: status", 400)
 
     if status not in VALID_ENROLLMENT_STATUSES:
-        return (
-            jsonify({
-                "error": "Invalid status value",
-                "allowed": list(VALID_ENROLLMENT_STATUSES),
-            }),
-            400,
-        )
+        return error_response(f"Invalid status value. Allowed values: {', '.join(VALID_ENROLLMENT_STATUSES)}", 400)
 
     updated = sessions_service.update_session_student_status(
         session_id=session_id,
@@ -311,7 +247,7 @@ def update_session_student_status(session_id: int, student_id: int):
     )
 
     if not updated:
-        return jsonify({"error": "Enrollment not found"}), 404
+        return error_response("Enrollment not found", 404)
 
-    return jsonify({"data": updated})
+    return success_response(updated, "Estado del estudiante en la sesión actualizado exitosamente")
 

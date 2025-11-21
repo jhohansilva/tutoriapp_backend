@@ -1,8 +1,7 @@
-import asyncio
 from typing import Any, Dict, List, Optional
 
 from prisma.errors import RecordNotFoundError
-from services.db import get_db
+from services.db import get_db, run_in_persistent_loop
 
 
 def _serialize_course(course: Any) -> Dict[str, Any]:
@@ -85,21 +84,21 @@ def find_many(
     semester: Optional[int] = None,
     status: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    return asyncio.run(_find_many(search, semester, status))
+    return run_in_persistent_loop(_find_many(search, semester, status))
 
 
 def find_one(course_id: int) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_find_one(course_id))
+    return run_in_persistent_loop(_find_one(course_id))
 
 
 def create(data: Dict[str, Any]) -> Dict[str, Any]:
-    return asyncio.run(_create(data))
+    return run_in_persistent_loop(_create(data))
 
 
 def update(course_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_update(course_id, data))
+    return run_in_persistent_loop(_update(course_id, data))
 
 
 def update_status(course_id: int, status: bool) -> Optional[Dict[str, Any]]:
-    return asyncio.run(_update_status(course_id, status))
+    return run_in_persistent_loop(_update_status(course_id, status))
 

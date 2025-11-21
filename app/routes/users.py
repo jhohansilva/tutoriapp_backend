@@ -82,12 +82,10 @@ def create_user():
 def update_user(user_id: int):
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado
     current_user = g.current_user
     current_user_id = current_user["id"]
     current_user_role = current_user["role"]
     
-    # Los usuarios solo pueden actualizar su propio perfil, a menos que sean admin
     if current_user_role != "admin" and user_id != current_user_id:
         return error_response("No tienes permiso para actualizar otros usuarios", 403)
     
@@ -152,3 +150,9 @@ def get_students_by_session(session_id: int):
     students = users_service.find_many_by_session_id(session_id, search=search, status=status)
     return success_response(students)
 
+
+@bp.get("/users/tutor/<int:tutor_id>/students")
+def get_students_by_tutor(tutor_id: int):
+    """Get all students (role=user) related to sessions of a specific tutor (role=admin)."""
+    students = users_service.find_students_by_tutor_id(tutor_id)
+    return success_response(students, "Estudiantes del tutor obtenidos exitosamente")

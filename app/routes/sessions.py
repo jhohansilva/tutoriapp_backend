@@ -21,7 +21,6 @@ def _validate_date_param(value: str) -> bool:
 
 
 @bp.get("/sessions")
-@require_auth
 def list_sessions():
     search = request.args.get("search")
     level = request.args.get("level")
@@ -29,7 +28,17 @@ def list_sessions():
     end_date = request.args.get("end_date")
     status = request.args.get("status")
     limit_str = request.args.get("limit")
+    habailable_for_student_id = request.args.get("habailable_for_student_id")
     
+    exclude_user_id = None
+    if habailable_for_student_id:
+        try:
+            exclude_user_id = int(habailable_for_student_id)
+            if exclude_user_id <= 0:
+                return error_response("exclude_user_id must be a positive integer", 400)
+        except ValueError:
+            return error_response("limit must be a valid integer", 400)
+
     # Convertir limit a int si está presente
     limit = None
     if limit_str:
@@ -49,10 +58,6 @@ def list_sessions():
     for label, value in (("start_date", start_date), ("end_date", end_date)):
         if value and not _validate_date_param(value):
             return error_response(f"Invalid {label} format, expected YYYY-MM-DD", 400)
-
-    exclude_user_id = None
-    if hasattr(g, 'current_user') and g.current_user:
-        exclude_user_id = g.current_user["id"]
 
     sessions = sessions_service.find_many(
         search=search,
@@ -137,7 +142,6 @@ def get_sessions_by_student(student_id: int):
 def create_session():
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado
     current_user = g.current_user
     user_id = current_user["id"]
     user_role = current_user["role"]
@@ -147,8 +151,6 @@ def create_session():
     if missing:
         return error_response(f"Missing required fields: {', '.join(missing)}", 400)
 
-    # Si no se proporciona tutor_id, usar el ID del usuario autenticado
-    # Solo admins pueden crear sesiones para otros tutores
     tutor_id = payload.get("tutor_id")
     if not tutor_id:
         tutor_id = user_id
@@ -203,13 +205,6 @@ def create_session():
 def update_session_status(session_id: int):
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado (operador)
-    # Ejemplo de uso: current_user = g.current_user
-    # user_id = current_user["id"]
-    # user_email = current_user["email"]
-    # user_role = current_user["role"]
-    # user_name = current_user["name"]
-    
     status = payload.get("status")
 
 
@@ -228,7 +223,6 @@ def create_session_student(session_id: int):
     """Create a new enrollment (SessionStudents record) for a student in a session."""
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado
     current_user = g.current_user
     user_id = current_user["id"]
     user_role = current_user["role"]
@@ -237,10 +231,8 @@ def create_session_student(session_id: int):
     status = payload.get("status", "requested")
     attended = payload.get("attended", False)
 
-    # Si no se proporciona student_id, usar el ID del usuario autenticado
     if not student_id:
         student_id = user_id
-    # Solo admins pueden inscribir a otros estudiantes
     elif user_role != "admin" and student_id != user_id:
         return error_response("No tienes permiso para inscribir a otros estudiantes", 403)
 
@@ -271,13 +263,6 @@ def create_session_student(session_id: int):
 def update_session_student_status(session_id: int, student_id: int):
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado (operador)
-    # Ejemplo de uso: current_user = g.current_user
-    # user_id = current_user["id"]
-    # user_email = current_user["email"]
-    # user_role = current_user["role"]
-    # user_name = current_user["name"]
-
     status = payload.get("status")
     attended = payload.get("attended")
 
@@ -298,4 +283,28 @@ def update_session_student_status(session_id: int, student_id: int):
         return error_response("Enrollment not found", 404)
 
     return success_response(updated, "Estado del estudiante en la sesión actualizado exitosamente")
+
+
+@bp.get("/sessions/student-stats/<int:student_id>")
+def student_stats(student_id: int):
+    """Get comprehensive statistics for a student's dashboard."""
+    stats = sessions_service.get_student_stats(student_id)
+    
+    return success_response(stats, "Estadísticas del estudiante obtenidas exitosamente")
+
+
+@bp.get("/sessions/student/stats-history/<int:student_id>")
+def student_stats_history(student_id: int):
+    """Get statistics history for past sessions of a student."""
+    stats = sessions_service.get_student_stats_history(student_id)
+    
+    return success_response(stats, "Historial de estadísticas del estudiante obtenido exitosamente")
+
+
+@bp.get("/sessions/tutor-stats/<int:tutor_id>")
+def tutor_stats(tutor_id: int):
+    """Get comprehensive statistics for a tutor's dashboard."""
+    stats = sessions_service.get_tutor_stats(tutor_id)
+    
+    return success_response(stats, "Estadísticas del tutor obtenidas exitosamente")
 

@@ -56,13 +56,6 @@ def get_course(course_id: int):
 def create_course():
     payload = request.get_json(silent=True) or {}
     
-    # Acceder a la información del usuario autenticado (operador)
-    # Ejemplo de uso: current_user = g.current_user
-    # operator_id = current_user["id"]
-    # operator_email = current_user["email"]
-    # operator_name = current_user["name"]
-    # operator_role = current_user["role"]
-
     code = payload.get("code")
     name = payload.get("name")
     description = payload.get("description")

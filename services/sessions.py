@@ -97,6 +97,7 @@ async def _find_many(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     status: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> Dict[str, Any]:
     async with get_db() as db:
         try:
@@ -121,17 +122,24 @@ async def _find_many(
             if end_dt:
                 where.setdefault("end_date", {})["lte"] = end_dt
 
-            sessions = await db.sessions.find_many(
-                where=where or None,
-                order={
+            # Construir los argumentos de find_many
+            find_args: Dict[str, Any] = {
+                "where": where or None,
+                "order": {
                     "start_date": "asc",
                 },
-                include={
+                "include": {
                     "course": True,
                     "tutor": True,
                     "students": True,
                 },
-            )
+            }
+            
+            # Solo agregar take si limit tiene un valor
+            if limit:
+                find_args["take"] = limit
+
+            sessions = await db.sessions.find_many(**find_args)
 
             data = [_session_to_dict(session) for session in sessions]
 
@@ -301,8 +309,9 @@ def find_many(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     status: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> Dict[str, Any]:
-    return asyncio.run(_find_many(search, level, start_date, end_date, status))
+    return asyncio.run(_find_many(search, level, start_date, end_date, status, limit))
 
 
 def find_many_by_student_id(

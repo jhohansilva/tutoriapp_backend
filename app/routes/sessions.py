@@ -24,6 +24,17 @@ def list_sessions():
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     status = request.args.get("status")
+    limit_str = request.args.get("limit")
+    
+    # Convertir limit a int si está presente
+    limit = None
+    if limit_str:
+        try:
+            limit = int(limit_str)
+            if limit <= 0:
+                return jsonify({"error": "limit must be a positive integer"}), 400
+        except ValueError:
+            return jsonify({"error": "limit must be a valid integer"}), 400
 
     if level and level not in {"basic", "medium", "advanced"}:
         return (
@@ -64,8 +75,9 @@ def list_sessions():
         start_date=start_date,
         end_date=end_date,
         status=status,
+        limit=limit,
     )
-    return jsonify({"data": sessions})
+    return jsonify({"data": sessions, "success": True})
 
 
 @bp.get("/sessions/<int:session_id>")
